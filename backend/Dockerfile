@@ -15,4 +15,4 @@ COPY --from=build /app/backend/dist ./dist
 COPY api /app/api
 USER node
 EXPOSE 3000
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/server.js"]

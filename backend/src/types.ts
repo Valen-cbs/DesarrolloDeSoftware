@@ -1,7 +1,68 @@
 import { DateTime } from 'luxon';
-import { errores } from '../errors/AppError';
-import { CambiosReserva, DatosReserva, ESTADOS, EstadoReserva, TipoVehiculo } from '../models/reserva';
 
+// Tipos del contrato
+export const ESTADOS = ['PENDIENTE', 'CONFIRMADA', 'CANCELADA', 'ACTIVADA', 'VENCIDA'] as const;
+export type EstadoReserva = typeof ESTADOS[number];
+export type TipoVehiculo = 'AUTO' | 'MOTO';
+
+export interface Reserva {
+  id: string;
+  clienteId: string;
+  origen: string;
+  destino: string;
+  tipoVehiculo: TipoVehiculo;
+  fechaHora: Date;
+  zonaHoraria: string;
+  estado: EstadoReserva;
+  tarifaEstimada: number | null;
+  motivoCancelacion: string | null;
+  solicitudDespachoId: string | null;
+  creadoEn: Date;
+  modificadoEn: Date;
+}
+
+export type DatosReserva = Pick<Reserva,
+  'clienteId' | 'origen' | 'destino' | 'tipoVehiculo' | 'fechaHora' | 'zonaHoraria'>;
+export type CambiosReserva = Partial<Pick<Reserva,
+  'origen' | 'destino' | 'tipoVehiculo' | 'fechaHora' | 'zonaHoraria' | 'tarifaEstimada'>>;
+export type AccionHistorial = 'CREADA' | 'MODIFICADA' | 'CANCELADA' | 'ACTIVADA';
+
+export interface EventoHistorial {
+  reservaId: string;
+  accion: AccionHistorial;
+  estadoAnterior: EstadoReserva | null;
+  estadoNuevo: EstadoReserva;
+  actor: string;
+  motivo?: string | null;
+  detalle?: Record<string, unknown> | null;
+}
+
+export interface EntradaHistorial extends EventoHistorial {
+  id: string;
+  fecha: Date;
+}
+
+// Errores compartidos
+export class AppError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly codigo: string,
+    mensaje: string,
+    public readonly detalle: unknown = null,
+  ) {
+    super(mensaje);
+  }
+}
+
+export const errores = {
+  datosInvalidos: (detalle: string[]) => new AppError(400, 'DATOS_INVALIDOS', 'Datos inválidos', detalle),
+  noEncontrada: (id: string) => new AppError(404, 'NO_ENCONTRADA', 'La reserva no existe', { id }),
+  conflicto: (mensaje: string, detalle: unknown = null) => new AppError(409, 'CONFLICTO', mensaje, detalle),
+  reglaIncumplida: (mensaje: string) => new AppError(422, 'REGLA_INCUMPLIDA', mensaje),
+  servicioNoDisponible: (mensaje: string) => new AppError(503, 'SERVICIO_NO_DISPONIBLE', mensaje),
+};
+
+// Validaciones reutilizadas por Personas 2 y 3
 const CAMPOS = ['origen', 'destino', 'tipoVehiculo', 'fechaHora', 'zonaHoraria'];
 const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/;
 
@@ -127,4 +188,16 @@ export function validarFiltros(query: Record<string, unknown>): FiltrosReservas 
   if (!Number.isSafeInteger(offset) || offset < 0) problemas.push('offset debe ser un entero no negativo');
   if (problemas.length) throw errores.datosInvalidos(problemas);
   return { clienteId: query.clienteId as string | undefined, estado: query.estado as EstadoReserva | undefined, limite, offset };
+}
+
+// Reglas de estado de Persona 3
+export const ESTADOS_EDITABLES: readonly EstadoReserva[] = ['PENDIENTE', 'CONFIRMADA'];
+export const esEditable = (estado: EstadoReserva): boolean => ESTADOS_EDITABLES.includes(estado);
+
+export function asegurarEditable(reserva: Reserva, accion: 'modificar' | 'cancelar'): void {
+  if (!esEditable(reserva.estado) || reserva.solicitudDespachoId !== null) {
+    throw errores.conflicto(`No se puede ${accion} una reserva en estado ${reserva.estado}`, {
+      estadoActual: reserva.estado,
+    });
+  }
 }

@@ -1,10 +1,9 @@
 # DesarrolloDeSoftware
 
-Backend M9 de referencia y aporte Persona 3 en `backend/`.
+Backend M9 en TypeScript, organizado en cuatro archivos fuente, con el aporte de Persona 3.
 
-- [Cómo ejecutar y probar el backend](backend/README.md)
-- [Decisiones de integración y concurrencia](docs/persona3-integracion.md)
+- [Cómo ejecutarlo y cómo se divide el trabajo](backend/README.md)
 - [Contrato OpenAPI](api/openapi.yaml)
 - [Pedidos de la demo](backend/requests.http)
 
-La integración del frontend se realiza con su rama independiente; esta rama de backend conserva los límites y responsabilidades del módulo M9.
+El frontend se integra desde su rama independiente. Esta rama contiene el backend M9.

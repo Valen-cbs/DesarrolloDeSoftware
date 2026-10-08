@@ -1,7 +1,63 @@
-import { Db } from '../db/pool';
-import { CambiosReserva, DatosReserva, Reserva } from '../models/reserva';
-import { FiltrosReservas } from '../validaciones/reserva.validaciones';
+import dotenv from 'dotenv';
+import path from 'node:path';
+import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
+import { CambiosReserva, DatosReserva, Reserva, FiltrosReservas, EntradaHistorial, EventoHistorial } from './types';
 
+// Infraestructura compartida — Persona 1
+dotenv.config({ path: path.resolve(__dirname, '../.env'), quiet: true });
+
+function entero(nombre: string, defecto: number, minimo: number): number {
+  const valor = Number(process.env[nombre] ?? defecto);
+  if (!Number.isSafeInteger(valor) || valor < minimo) throw new Error(`Configuración inválida: ${nombre}`);
+  return valor;
+}
+
+export const config = {
+  entorno: process.env.NODE_ENV ?? 'development',
+  puerto: entero('PORT', 3000, 1),
+  databaseUrl: process.env.NODE_ENV === 'test' ? process.env.TEST_DATABASE_URL : process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV !== 'test' && process.env.DB_SSL === 'true',
+  corsOrigenes: (process.env.CORS_ORIGIN ?? 'http://localhost:5173').split(',').map(x => x.trim()),
+  anticipacionMinimaMinutos: entero('ANTICIPACION_MINIMA_MINUTOS', 60, 0),
+  anticipacionMaximaDias: entero('ANTICIPACION_MAXIMA_DIAS', 30, 1),
+  integracionTimeoutMs: entero('INTEGRACION_TIMEOUT_MS', 2000, 1),
+};
+
+if (config.puerto > 65535 || config.anticipacionMinimaMinutos > config.anticipacionMaximaDias * 1440) {
+  throw new Error('Configuración de puerto o ventana temporal inválida');
+}
+
+export interface Db {
+  query<T extends QueryResultRow = QueryResultRow>(sql: string, valores?: unknown[]): Promise<QueryResult<T>>;
+}
+
+export const pool = new Pool({
+  connectionString: config.databaseUrl,
+  application_name: 'm9-backend',
+  ssl: config.ssl ? { rejectUnauthorized: true } : false,
+  max: 10,
+  connectionTimeoutMillis: 5000,
+  idleTimeoutMillis: 30_000,
+});
+
+export async function transaccion<T>(operacion: (db: PoolClient) => Promise<T>): Promise<T> {
+  const db = await pool.connect();
+  try {
+    await db.query('BEGIN ISOLATION LEVEL READ COMMITTED');
+    await db.query("SET LOCAL lock_timeout = '5s'");
+    await db.query("SET LOCAL statement_timeout = '15s'");
+    const resultado = await operacion(db);
+    await db.query('COMMIT');
+    return resultado;
+  } catch (error) {
+    try { await db.query('ROLLBACK'); } catch { /* Se conserva el error original. */ }
+    throw error;
+  } finally {
+    db.release();
+  }
+}
+
+// Repositorios SQL — Persona 1
 function mapear(fila: Record<string, any>): Reserva {
   return {
     id: fila.id, clienteId: fila.cliente_id, origen: fila.origen, destino: fila.destino,
@@ -68,4 +124,21 @@ export async function hayActivacionIniciada(db: Db, id: string): Promise<boolean
 export async function registrarIntencionActivacion(db: Db, id: string): Promise<void> {
   await db.query(`UPDATE reservas SET activacion_iniciada=true, modificado_en=now()
     WHERE id=$1 AND NOT activacion_iniciada`, [id]);
+}
+
+export async function registrarHistorial(db: Db, evento: EventoHistorial): Promise<void> {
+  await db.query(`INSERT INTO historial_reservas
+    (reserva_id, accion, estado_anterior, estado_nuevo, actor, motivo, detalle)
+    VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb)`,
+    [evento.reservaId, evento.accion, evento.estadoAnterior, evento.estadoNuevo, evento.actor,
+      evento.motivo ?? null, evento.detalle ? JSON.stringify(evento.detalle) : null]);
+}
+
+export async function listarHistorial(db: Db, id: string): Promise<EntradaHistorial[]> {
+  const resultado = await db.query('SELECT * FROM historial_reservas WHERE reserva_id=$1 ORDER BY fecha, id', [id]);
+  return resultado.rows.map(fila => ({
+    id: fila.id, reservaId: fila.reserva_id, accion: fila.accion, estadoAnterior: fila.estado_anterior,
+    estadoNuevo: fila.estado_nuevo, actor: fila.actor, motivo: fila.motivo,
+    detalle: fila.detalle, fecha: fila.fecha,
+  }));
 }

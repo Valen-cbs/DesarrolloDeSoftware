@@ -1,7 +1,7 @@
 services:
   backend:
     build:
-      context: .
+      context: ..
       dockerfile: backend/Dockerfile
     ports:
       - "3000:3000"
@@ -24,7 +24,7 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - ./db/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+      - ./schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U m9 -d m9_test"]
       interval: 2s
