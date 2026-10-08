@@ -1,9 +1,8 @@
 # DesarrolloDeSoftware
 
-Backend M9 en TypeScript, organizado en cuatro archivos fuente, con el aporte de Persona 3.
+Esta rama contiene únicamente el aporte de **Persona 3** al backend M9: modificar, cancelar y consultar el historial de reservas, en TypeScript.
 
-- [Cómo ejecutarlo y cómo se divide el trabajo](backend/README.md)
-- [Contrato OpenAPI](api/openapi.yaml)
-- [Pedidos de la demo](backend/requests.http)
+- [Ejecución, funcionamiento y división del trabajo](backend/README.md)
+- [Pedidos HTTP de Persona 3](backend/requests.http)
 
-El frontend se integra desde su rama independiente. Esta rama contiene el backend M9.
+El aporte se integra al servidor compartido del equipo.

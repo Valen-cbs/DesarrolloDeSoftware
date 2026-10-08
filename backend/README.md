@@ -1,176 +1,91 @@
-# Backend M9 — versión compacta
+# Backend M9 — aporte de Persona 3
 
-Este backend está escrito en **TypeScript** y agrupa la implementación en **cuatro archivos fuente**. Tu parte como Persona 3 permite modificar, cancelar y consultar el historial. Se conserva una base de referencia para crear, consultar, listar y activar, para poder probar el flujo completo mientras se integran los aportes del equipo.
+Tu parte implementa **RF-9.6 (modificar), RF-9.7 (cancelar) y RF-9.12 (endpoint del historial)**. Sus pruebas controlan el contrato de esas rutas (RNF-03), las reglas propias (RNF-07) y su uso de transacciones y bloqueo (RNF-08).
 
-## 1. Descargar y preparar
+## Cómo probar tu parte
 
-Necesitás Git, **Node 24 o superior**, npm y Docker con Compose para PostgreSQL local.
+Necesitás Node.js 24 o superior y npm. Desde la carpeta del repositorio:
 
 ```bash
-git clone --branch back/persona3 --single-branch https://github.com/Valen-cbs/DesarrolloDeSoftware.git
-cd DesarrolloDeSoftware/backend
-node --version
-cp .env.example .env
+cd backend
 npm ci
-```
-
-Si ya tenés el repositorio, entrá en él y ejecutá `git fetch origin`, `git switch back/persona3`, `git pull --ff-only` y después `cd backend`. No hace falta cambiar a main.
-
-Todos los comandos siguientes se ejecutan desde **backend**. `.env` contiene tu configuración local y no se sube a Git; `.env.example` es la plantilla.
-
-## 2. Levantar PostgreSQL local
-
-```bash
-docker compose --profile test up -d --wait db-test
-```
-
-Inicia PostgreSQL en el puerto **5433** de tu computadora e inicializa las dos tablas de `schema.sql` cuando la base es nueva. No se conecta a Supabase.
-
-La configuración de ejemplo ya coincide con esta base:
-
-```dotenv
-DATABASE_URL=postgresql://m9:m9_local@localhost:5433/m9_test
-TEST_DATABASE_URL=postgresql://m9:m9_local@localhost:5433/m9_test
-DB_SSL=false
-```
-
-`DATABASE_URL` la usa la aplicación; `TEST_DATABASE_URL`, las pruebas. Los valores de ejemplo son para desarrollo local. **m9_test es una base descartable**: las pruebas limpian sus reservas e historial. El archivo SQL se ejecuta al inicializar una base nueva, no al arrancar Express.
-
-## 3. Ejecutar el servidor
-
-```bash
-npm run dev
-```
-
-Dejá la terminal abierta. `tsx watch` ejecuta `src/server.ts` y reinicia el servidor cuando guardás cambios.
-
-Abrí:
-
-- http://localhost:3000/health — comprueba la conexión a PostgreSQL.
-- http://localhost:3000/docs — muestra Swagger y permite probar endpoints.
-- http://localhost:3000/openapi.json — devuelve el contrato de la API.
-
-Si `/health` responde 200 con `persistencia: "ok"`, la conexión funciona. Si responde 503, revisá que `db-test` esté iniciado y que `.env` use el host y puerto correctos.
-
-Para detener Express: **Ctrl+C**. Para detener la base: `docker compose --profile test stop db-test`.
-
-## 4. Probar tu trabajo
-
-En VS Code, instalá REST Client y abrí `requests.http`. Ejecutá **Send Request** en el orden numerado. Los ejemplos generan fechas futuras y capturan automáticamente el UUID de las reservas creadas.
-
-La demo crea una reserva, la consulta, modifica vehículo y fecha, muestra el historial, la activa y comprueba los rechazos posteriores. Después crea otra reserva para demostrar una cancelación exitosa.
-
-| Tus endpoints — Persona 3 | Función |
-|---|---|
-| `PATCH /reservas/{id}` | Modificar campos permitidos o reprogramar. |
-| `POST /reservas/{id}/cancelar` | Cancelar con motivo de al menos tres caracteres. |
-| `GET /reservas/{id}/historial` | Consultar eventos ordenados, sin borrarlos. |
-
-Copiá el UUID real devuelto al crear: el id no es un número. Con Swagger, ejecutá primero `POST /reservas`, copiá `id` y usalo en las otras operaciones.
-
-## 5. Cómo está dividido el código
-
-Las cuatro personas trabajan dentro de **un mismo servicio M9**, con un mismo Express y su persistencia. El reparto asigna responsabilidades; no crea cuatro servidores ni cuatro bases.
-
-| Archivo | Contenido |
-|---|---|
-| `src/server.ts` | Express, rutas, controladores HTTP, CORS y manejo de errores. |
-| `src/types.ts` | Interfaz Reserva, tipos, validaciones y reglas de estado. |
-| `src/db.ts` | Configuración, pool, transacciones y consultas SQL. |
-| `src/reservas.ts` | Casos de uso y stubs temporales, señalados por persona. |
-
-Una petición entra por `server.ts`, que obtiene sus datos y llama a una función de `reservas.ts`. Esa función aplica reglas de `types.ts` y usa `db.ts` para leer o guardar. Las responsabilidades siguen separadas, aunque se agrupan las funciones pequeñas en menos archivos.
-
-### División entre las personas
-
-| Persona | Responsabilidad | Ubicación en esta versión |
-|---|---|---|
-| 1 | Estructura, conexión, Docker, errores y SQL del historial. | `db.ts`, infraestructura de `server.ts`, `schema.sql`, Dockerfile y Compose. |
-| 2 | Crear, consultar, listar; validaciones y stubs M2/M4/M7. | Sección Persona 2 de `reservas.ts`, validaciones de `types.ts` y objeto `stubs`. |
-| **3 — vos** | **Modificar, cancelar, consultar historial y probar esas operaciones.** | **Sección Persona 3 de `reservas.ts`, reglas de estado y las tres rutas correspondientes.** |
-| 4 | Activación sin duplicados, stub M5 y base de pruebas. | Sección Persona 4 de `reservas.ts`, stub M5 y preparación de integración en las pruebas. |
-
-Para empezar con tu parte, buscá **`// Persona 3` en `src/reservas.ts`**. Tus funciones son `modificarReserva`, `cancelarReserva` y `obtenerHistorial`; sus controladores están agrupados en `server.ts`.
-
-Persona 1 prepara las tablas y consultas del historial. Vos las utilizás: registrás modificación/cancelación y exponés su consulta. Persona 2 registra la creación y Persona 4 la activación. También te corresponde controlar con Bloque 1 que OpenAPI coincida con tus operaciones.
-
-Las partes de Personas 1/2/4 son una base de referencia, porque no existía backend al crear esta rama. Cuando entren sus PR, hay que conciliar los archivos compartidos. Esta estructura compacta mantiene el reparto de la guía.
-
-## 6. Cómo funcionan tus operaciones
-
-- Modificar y cancelar solo admiten PENDIENTE o CONFIRMADA, sin activación iniciada. Los otros estados responden 409.
-- Se modifica cuando faltan al menos los minutos configurados para el viaje: 60 por defecto. La nueva fecha debe respetar la ventana máxima: 30 días por defecto.
-- Cambiar recorrido o vehículo recalcula cobertura y tarifa. Cambiar solo fecha o zona no recalcula tarifa.
-- Fecha UTC y zona IANA de Buenos Aires pueden combinarse. Las fechas inexistentes se rechazan.
-- Cancelar exige motivo; esta entrega no agrega un límite temporal de cancelación ni calcula cargos.
-- Cambio e historial se guardan en una misma transacción: si falla el historial, se revierte el cambio.
-- Cada modificación registra valores anteriores y nuevos. Si no hay cambios reales, no se agrega un evento.
-
-Se lee con **SELECT FOR UPDATE dentro de la transacción**. Otro pedido que quiera cambiar la misma reserva espera y después verifica sus datos y estado actualizados. Esto evita calcular una tarifa con datos viejos cuando llegan dos modificaciones simultáneas.
-
-La activación usa una intención persistente (`activacion_iniciada`) y una clave M5 estable. Ante una respuesta incierta, modificar y cancelar siguen bloqueados; repetir activar permite recuperar la operación. Esa columna interna debe conciliarse con Bloque 2 antes de aplicar el esquema a Supabase.
-
-## 7. Ejecutar las pruebas
-
-```bash
 npm run typecheck
-npm run test:unit
-npm run validate:api
 npm test
 ```
 
-`typecheck` verifica tipos; `test:unit` verifica validaciones sin conexión a la base; `validate:api` valida OpenAPI. Para `npm test`, PostgreSQL debe estar encendido y `TEST_DATABASE_URL` configurada.
+`typecheck` verifica los tipos del código y de las pruebas; `test` ejecuta únicamente las pruebas de Persona 3. No necesitás Docker, una base de datos, un `.env` ni credenciales para correrlas.
 
-Todo está agrupado en **`tests/reservas.test.ts`**, con secciones de validación, contrato, modificación/cancelación y activación. La integración usa PostgreSQL real y verifica bloqueos, rollback, errores e historial. Antes de limpiar tablas, restringe el destino a una base local llamada `m9_test`.
+Los repositorios, las validaciones comunes y M4/M7 están simulados **solo dentro del test**. Se prueban las rutas HTTP con Express/Supertest, sus respuestas, las reglas del servicio, la auditoría y el comportamiento ante fallos y pedidos concurrentes. Esto no verifica el SQL ni los bloqueos reales de PostgreSQL; esa comprobación se hace al integrar la infraestructura de Persona 1.
 
-Esta versión se verificó con **65 pruebas aprobadas** y compilación TypeScript. El contenedor Docker debe verificarse en un equipo con Docker disponible.
+## Los archivos
 
-## 8. Compilar
+| Archivo | Para qué sirve |
+| --- | --- |
+| `src/modificarCancelar.ts` | Reglas, servicio y controladores de las tres rutas. También declara qué funciones compartidas necesita recibir. |
+| `tests/modificarCancelar.test.ts` | Todas las pruebas propias y sus dobles de prueba. |
+| `requests.http` | Pedidos manuales de tus tres operaciones, para usar una vez integrado el servidor. |
+| `package.json`, `package-lock.json`, `tsconfig.json` | Configuración mínima para instalar dependencias, comprobar TypeScript y ejecutar estas pruebas. Al integrar, se combinan con la configuración común. |
 
-```bash
-npm run build
-npm start
+## Cómo funciona
+
+**Modificar:** acepta únicamente `origen`, `destino`, `tipoVehiculo`, `fechaHora` y `zonaHoraria`, con al menos un campo. Reutiliza las validaciones de Persona 2. Solo permite reservas PENDIENTES o CONFIRMADAS sin despacho asociado. Si a la fecha original le falta menos de la anticipación mínima, responde 422; si cambia la fecha, valida también la nueva ventana. Los valores de anticipación se reciben de la configuración común, por ejemplo 60 minutos y 30 días.
+
+Cuando cambia origen, destino o vehículo, consulta cobertura a M4 y tarifa a M7. Una reprogramación o cambio de zona conserva la tarifa. Si el pedido repite los valores actuales, devuelve la reserva sin escribir otro evento. Un cambio efectivo guarda la reserva y un evento MODIFICADA con actor, valores anteriores y nuevos, usando la misma transacción.
+
+**Cancelar:** exige `motivo` de entre 3 y 1000 caracteres, quitando espacios en los extremos. Aplica las mismas reglas de estado y despacho, sin el límite de la última hora que corresponde a modificar. Guarda CANCELADA, el motivo y su evento de historial en la misma transacción. No calcula cargos ni implementa pagos.
+
+**Historial:** comprueba que la reserva exista y devuelve todos los eventos recibidos del repositorio compartido, incluso los generados por las otras personas. El repositorio de Persona 1 debe devolverlos en orden por fecha e identificador.
+
+## Qué aporta cada persona
+
+| Persona | Trabajo que se recibe al integrar |
+| --- | --- |
+| 1 | Servidor, conexión/pool, configuración, modelo común, repositorios, SQL de reservas e historial, errores y middleware comunes, actor y contrato OpenAPI. |
+| 2 | Crear, consultar y listar; validaciones comunes; adaptadores o stubs M4 y M7 que tu servicio reutiliza. |
+| 3 — vos | Modificar, cancelar, endpoint del historial, reglas de estado, pedidos HTTP y pruebas propias. |
+| 4 | Activación sin duplicados y base común de pruebas. No se implementa activación en este aporte. |
+
+**La base de datos se conecta una sola vez en la infraestructura compartida.** Tu servicio recibe ese pool y los repositorios: no crea tablas, conexiones ni otra base.
+
+## Cómo integrarlo y ejecutarlo con el equipo
+
+Esta entrega es una parte del backend, no un servidor independiente: por eso no tiene `npm start` ni `npm run dev`. Para levantar la API necesitás integrar el servidor y los repositorios de Persona 1 y las funciones comunes de Persona 2. Después se utiliza el comando de arranque que defina Persona 1, sin agregar Docker a tu trabajo.
+
+`crearServicioPersona3(dependencias)` recibe las funciones detalladas en la interfaz `Dependencias`. Los nombres coinciden con los de la guía; si el equipo usa otros nombres o modelos, se adaptan al pasar las dependencias. Los tipos de este archivo describen los datos mínimos que necesita tu servicio, no reemplazan el modelo compartido.
+
+En el servidor compartido, luego de importar las funciones existentes de Personas 1 y 2, el montaje es:
+
+```ts
+import { crearServicioPersona3, crearRutasPersona3 } from './modificarCancelar';
+
+const persona3 = crearServicioPersona3({
+  pool, transaccion, config, errores,
+  buscarReservaPorId, actualizarDatosReserva, cancelarReservaEnBase,
+  registrarHistorial, listarHistorial,
+  validaciones, consultarRuta, estimarTarifa,
+});
+
+// app, actorDe y manejarErrores son los componentes compartidos de Persona 1.
+app.use(express.json());
+app.use('/reservas', crearRutasPersona3(persona3, actorDe));
+// Mantener aquí también las rutas de Personas 2 y 4.
+app.use(manejarErrores);
 ```
 
-Detené antes `npm run dev` para liberar el puerto 3000. TypeScript genera JavaScript en `dist/` para que Node lo ejecute. **Se edita el código `.ts`; `dist/` no se sube a Git.** No hay scripts fuente `.js` o `.cjs` en esta versión.
+El ejemplo muestra el montaje; las dependencias se importan de los archivos que entregue el equipo. `validaciones` agrupa `esTextoConContenido`, `esTipoVehiculoValido`, `esZonaHorariaValida`, `convertirFecha` y `validarVentana`. El servidor debe usar Express 5, que entrega automáticamente los errores asíncronos al middleware común. Reemplazá las rutas provisorias de Persona 3 para que no queden registradas dos veces.
 
-## 9. Supabase y contenedor del backend
+Para RNF-08, `transaccion` debe hacer commit/rollback y `buscarReservaPorId(db, id, true)` debe bloquear la fila con `SELECT ... FOR UPDATE`. Lectura, actualización e historial deben usar el mismo cliente transaccional. Los UPDATE deben comprobar estado editable y ausencia de despacho, y devolver `null` si ya no corresponde modificar/cancelar; tu servicio convierte ese resultado en 409. Persona 4 debe coordinar su activación sobre la misma fila para no pisarse. Estos requisitos pertenecen a la integración con los repositorios, no se simulan en producción.
 
-Para Supabase, reemplazá `DATABASE_URL` por la conexión acordada y configurá `DB_SSL=true`. Conservá `TEST_DATABASE_URL` apuntando a la base local. El backend no aplica SQL al arrancar: Persona 1/Bloque 2 deben revisar y preparar las tablas con el esquema acordado.
+Cuando llegue lo de Persona 2, se conservan sus funciones y rutas; se pasan sus validaciones y M4/M7 a tu servicio. No se reemplaza su trabajo ni se crea un segundo servidor. La creación de reservas para la demo se hace con su endpoint; luego usás el UUID existente en `requests.http`.
 
-Para ejecutar también Express en un contenedor, usá una URL accesible **desde ese contenedor**. Para `db-test`, el host es `db-test` y el puerto **5432**, en lugar de localhost:5433:
+## Contrato de tus rutas
 
-```dotenv
-DATABASE_URL=postgresql://m9:m9_local@db-test:5432/m9_test
-DB_SSL=false
-```
+| Método y ruta | Respuesta correcta |
+| --- | --- |
+| `PATCH /reservas/:id` | 200 con la reserva actualizada. |
+| `POST /reservas/:id/cancelar` | 200 con la reserva cancelada. |
+| `GET /reservas/:id/historial` | 200 con un arreglo de eventos. |
 
-Después:
+Se usan los errores compartidos: 400 para formato/campos inválidos, 404 para reserva inexistente, 409 para estado incompatible o conflicto al guardar, 422 para reglas temporales/cobertura, 503 si falla M4/M7. El middleware común responde `{ codigo, mensaje, detalle }`. Las fechas se serializan como ISO 8601. `X-Actor` sigue siendo una etiqueta de auditoría de esta entrega, gestionada por la utilidad compartida.
 
-```bash
-docker compose --profile test up -d --wait db-test
-docker compose up --build -d backend
-docker compose logs -f backend
-```
-
-Para volver a `npm run dev` en tu computadora, restaurá `DATABASE_URL` a localhost:5433. Las pruebas ejecutadas desde tu terminal siguen usando localhost:5433 en `TEST_DATABASE_URL`.
-
-## 10. Simulaciones, integración y errores comunes
-
-Un **stub** imita otro módulo para poder trabajar sin su API real. El objeto `stubs` en `reservas.ts` simula clientes, cobertura, tarifas y despacho. El recorrido es fijo: AUTO estima 4750 y MOTO 3500. No se consultan tablas de otros módulos.
-
-M5 deduplica solicitudes por clave en memoria y cuenta intentos por separado para detectar llamadas duplicadas. El servicio real deberá persistir las claves y resultados para mantener la garantía entre reinicios. La activación de esta entrega es manual; no hay recuperación automática.
-
-`X-Actor` es una etiqueta de auditoría, no autenticación. Login, permisos reales, recordatorios, vencimiento automático, scheduler, mensajería y cargos quedan fuera de esta base.
-
-El frontend de `front/pantalla` debe alinear `id` a string UUID, `creadaEn` a `creadoEn` y agregar `modificadoEn`. Sus URLs de crear/listar/cancelar y las fechas enviadas son compatibles. Esta corrección no modifica esa rama ni main.
-
-| Problema | Qué revisar |
-|---|---|
-| Conexión rechazada o health 503 | Base iniciada, URL y puerto de `.env`. |
-| Tabla inexistente | Inicialización de `schema.sql` en la base utilizada. |
-| Puerto 3000 ocupado | Otra instancia de Express; detenela antes de arrancar. |
-| 400 | Formato de datos, UUID o JSON. |
-| 409 | Estado incompatible, activación pendiente o conflicto concurrente. |
-| 422 | Regla de negocio: anticipación, cobertura o cliente habilitado. |
-| 503 | Dependencia no disponible o timeout. |
+El contrato OpenAPI/Swagger del backend completo se mantiene con Persona 1 y Bloque 1. Este aporte controla sus tres rutas y no instala Swagger ni redefine las rutas ajenas.
