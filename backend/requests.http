@@ -1,0 +1,113 @@
+@baseUrl = http://localhost:3000
+@clienteId = cliente-demo
+
+### 1. Salud — 200
+GET {{baseUrl}}/health
+
+### 2. Crear — 201. Ejecutar primero para capturar el UUID.
+# @name crear
+POST {{baseUrl}}/reservas
+Content-Type: application/json
+X-Actor: Valentino
+
+{
+  "clienteId": "{{clienteId}}",
+  "origen": "Plaza 25 de Mayo",
+  "destino": "Terminal de Resistencia",
+  "tipoVehiculo": "AUTO",
+  "fechaHora": "{{$datetime iso8601 1 d}}",
+  "zonaHoraria": "America/Argentina/Buenos_Aires"
+}
+
+### 3. Consultar — 200
+GET {{baseUrl}}/reservas/{{crear.response.body.$.id}}
+
+### 4. Listar por cliente — 200
+GET {{baseUrl}}/reservas?clienteId={{clienteId}}&limite=50&offset=0
+
+### 5. Modificar vehículo y reprogramar — 200, tarifa MOTO 3500
+PATCH {{baseUrl}}/reservas/{{crear.response.body.$.id}}
+Content-Type: application/json
+X-Actor: Valentino
+
+{
+  "tipoVehiculo": "MOTO",
+  "fechaHora": "{{$datetime iso8601 2 d}}"
+}
+
+### 6. Historial — CREADA y MODIFICADA con valores anteriores y nuevos
+GET {{baseUrl}}/reservas/{{crear.response.body.$.id}}/historial
+
+### 7. Activación manual TP1 — 200
+POST {{baseUrl}}/reservas/{{crear.response.body.$.id}}/activar
+X-Actor: operador-demo
+
+### 8. Repetir activación — 409, sin duplicar solicitud ni historial
+POST {{baseUrl}}/reservas/{{crear.response.body.$.id}}/activar
+X-Actor: operador-demo
+
+### 9. Cancelar activada — 409
+POST {{baseUrl}}/reservas/{{crear.response.body.$.id}}/cancelar
+Content-Type: application/json
+X-Actor: Valentino
+
+{ "motivo": "Cambio de planes" }
+
+### 10. Crear otra reserva para demostrar una cancelación válida — 201
+# @name crearParaCancelar
+POST {{baseUrl}}/reservas
+Content-Type: application/json
+X-Actor: Valentino
+
+{
+  "clienteId": "{{clienteId}}",
+  "origen": "Plaza 25 de Mayo",
+  "destino": "Terminal de Resistencia",
+  "tipoVehiculo": "AUTO",
+  "fechaHora": "{{$datetime iso8601 1 d}}",
+  "zonaHoraria": "America/Argentina/Buenos_Aires"
+}
+
+### 11. Cancelar válidamente — 200
+POST {{baseUrl}}/reservas/{{crearParaCancelar.response.body.$.id}}/cancelar
+Content-Type: application/json
+X-Actor: Valentino
+
+{ "motivo": "Cambio de planes" }
+
+### 12. Historial de cancelación — CREADA y CANCELADA
+GET {{baseUrl}}/reservas/{{crearParaCancelar.response.body.$.id}}/historial
+
+### 13. Motivo corto — 400
+POST {{baseUrl}}/reservas/{{crearParaCancelar.response.body.$.id}}/cancelar
+Content-Type: application/json
+
+{ "motivo": "ab" }
+
+### 14. Campo protegido — 400
+PATCH {{baseUrl}}/reservas/{{crearParaCancelar.response.body.$.id}}
+Content-Type: application/json
+
+{ "estado": "CONFIRMADA" }
+
+### 15. Fecha demasiado próxima — 422
+POST {{baseUrl}}/reservas
+Content-Type: application/json
+
+{
+  "clienteId": "{{clienteId}}",
+  "origen": "Plaza 25 de Mayo",
+  "destino": "Terminal de Resistencia",
+  "tipoVehiculo": "AUTO",
+  "fechaHora": "{{$datetime iso8601 10 m}}",
+  "zonaHoraria": "America/Argentina/Buenos_Aires"
+}
+
+### 16. UUID inexistente — 404
+GET {{baseUrl}}/reservas/00000000-0000-0000-0000-000000000000/historial
+
+### 17. Fecha inexistente — 400
+PATCH {{baseUrl}}/reservas/{{crearParaCancelar.response.body.$.id}}
+Content-Type: application/json
+
+{ "fechaHora": "2026-02-30T12:00:00Z" }
