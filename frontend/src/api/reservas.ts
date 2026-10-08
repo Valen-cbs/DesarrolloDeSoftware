@@ -79,7 +79,6 @@ const mock: ReservasApi = {
       motivoCancelacion: null,
       solicitudDespachoId: null,
       creadaEn: ahora,
-      modificadaEn: ahora,
     };
         reservasMock = [nueva, ...reservasMock];
         return nueva;
@@ -95,7 +94,6 @@ const mock: ReservasApi = {
             ...r,
             estado: 'CANCELADA',
             motivoCancelacion: motivo,
-            modificadaEn: new Date().toISOString(),
         };
         reservasMock = reservasMock.map((x) => (x.id === id ? cancelada : x));
         return cancelada;

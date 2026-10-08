@@ -20,7 +20,6 @@ export interface Reserva {
   motivoCancelacion: string | null;
   solicitudDespachoId: string | null; // vacío hasta que M5 crea la solicitud
   creadaEn: string;
-  modificadaEn: string;
 }
 
 export interface NuevaReserva {
