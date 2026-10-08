@@ -28,7 +28,7 @@ export function FormReserva({ clienteId, onCreada }: Props) {
                 origen,
                 destino,
                 tipoVehiculo,
-                fechaHora,
+                fechaHora: new Date(fechaHora).toISOString(),
                 zonaHoraria: Intl.DateTimeFormat().resolvedOptions().timeZone,
             });
             setEstado('ok');

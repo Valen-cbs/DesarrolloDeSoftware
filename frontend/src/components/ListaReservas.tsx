@@ -9,11 +9,11 @@ interface Props {
 
 export function ListaReservas({ reservas, onCambio }: Props) {
   const [error, setError] = useState('');
-  const [cancelandoId, setCancelandoId] = useState<string | null>(null);
+  const [cancelandoId, setCancelandoId] = useState<number | null>(null);
   const [motivo, setMotivo] = useState('');
   const [enviando, setEnviando] = useState(false);
 
-  function abrir(id: string) {
+  function abrir(id: number) {
     setCancelandoId(id);
     setMotivo('');
     setError('');
@@ -24,7 +24,7 @@ export function ListaReservas({ reservas, onCambio }: Props) {
     setMotivo('');
   }
 
-  async function confirmar(id: string) {
+  async function confirmar(id: number) {
     if (!motivo.trim()) {
       setError('Escribí un motivo para cancelar');
       return;

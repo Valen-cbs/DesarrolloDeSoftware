@@ -6,7 +6,7 @@ import type { Reserva } from './types';
 
 // Provisorio hasta que exista el login (M1).
 // Cuando el Bloque 2 suba db/seed.sql, poné acá un clienteId que exista ahí.
-const CLIENTE_ID = 'cliente-demo-1';
+const CLIENTE_ID = 'c-1';
 
 export default function App() {
   const [reservas, setReservas] = useState<Reserva[]>([]);

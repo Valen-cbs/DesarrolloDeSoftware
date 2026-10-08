@@ -14,7 +14,7 @@ export class ApiError extends Error {
 interface ReservasApi {
     listar(clienteId: string): Promise<Reserva[]>;
     crear(datos: NuevaReserva): Promise<Reserva>;
-    cancelar(id: string, motivo: string): Promise<Reserva>;
+    cancelar(id: number, motivo: string): Promise<Reserva>;
 }
 
 // ---------- Backend real ----------
@@ -56,6 +56,7 @@ const real: ReservasApi = {
 
 // ---------- Simulación (mientras no hay backend) ----------
 let reservasMock: Reserva[] = [];
+let siguienteId = 1;
 const esperar = () => new Promise((r) => setTimeout(r, 500));
 
 const mock: ReservasApi = {
@@ -69,12 +70,17 @@ const mock: ReservasApi = {
         if (new Date(datos.fechaHora).getTime() < minimo) {
             throw new ApiError(422, 'La reserva debe hacerse con al menos 60 minutos de anticipación');
         }
-        const nueva: Reserva = {
-            ...datos,
-            id: crypto.randomUUID(),
-            estado: 'CONFIRMADA',
-            tarifaEstimada: 4500,
-        };
+    const ahora = new Date().toISOString();
+    const nueva: Reserva = {
+      ...datos,
+      id: siguienteId++,
+      estado: 'CONFIRMADA',
+      tarifaEstimada: 4500,
+      motivoCancelacion: null,
+      solicitudDespachoId: null,
+      creadaEn: ahora,
+      modificadaEn: ahora,
+    };
         reservasMock = [nueva, ...reservasMock];
         return nueva;
     },
@@ -85,7 +91,12 @@ const mock: ReservasApi = {
         if (r.estado === 'CANCELADA' || r.estado === 'ACTIVADA') {
             throw new ApiError(409, `No se puede cancelar una reserva ${r.estado}`);
         }
-        const cancelada: Reserva = { ...r, estado: 'CANCELADA', motivoCancelacion: motivo };
+        const cancelada: Reserva = {
+            ...r,
+            estado: 'CANCELADA',
+            motivoCancelacion: motivo,
+            modificadaEn: new Date().toISOString(),
+        };
         reservasMock = reservasMock.map((x) => (x.id === id ? cancelada : x));
         return cancelada;
     },
