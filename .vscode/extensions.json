@@ -1,0 +1,10 @@
+{
+  "recommendations": [
+    "ms-azuretools.vscode-docker",
+    "humao.rest-client",
+    "vitest.explorer",
+    "ms-ossdata.vscode-pgsql",
+    "github.vscode-pull-request-github",
+    "eamodio.gitlens"
+  ]
+}
