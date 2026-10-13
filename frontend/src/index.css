@@ -1,0 +1,147 @@
+:root {
+  font-family: system-ui, sans-serif;
+  color-scheme: light dark;
+  --borde: #8884;
+  --acento: #646cff;
+}
+
+body {
+  margin: 0;
+}
+
+.contenedor {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 16px;
+  display: grid;
+  gap: 24px;
+}
+
+.aviso {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #f5a623;
+  background: #f5a62322;
+  font-size: 14px;
+}
+
+.card {
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.card h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+label {
+  display: grid;
+  gap: 4px;
+  font-size: 14px;
+}
+
+input,
+select,
+button {
+  font: inherit;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--borde);
+}
+
+button {
+  cursor: pointer;
+  background: var(--acento);
+  color: white;
+  border: none;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.mensaje {
+  margin: 0;
+  font-size: 14px;
+}
+
+.mensaje.ok {
+  color: #2e9d4f;
+}
+
+.mensaje.error {
+  color: #d64545;
+}
+
+.lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.lista li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+}
+
+.lista li>div {
+  flex: 1;
+  display: grid;
+  gap: 2px;
+  font-size: 14px;
+}
+
+.estado {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--borde);
+}
+
+.estado.confirmada {
+  background: #2e9d4f33;
+}
+
+.estado.pendiente {
+  background: #f5a62333;
+}
+
+.estado.cancelada {
+  background: #d6454533;
+}
+
+.estado.activada {
+  background: #646cff33;
+}
+
+.cancelar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
+
+.cancelar input {
+  flex: 1;
+  min-width: 180px;
+}
+
+button.secundario {
+  background: transparent;
+  color: inherit;
+  border: 1px solid var(--borde);
+}
